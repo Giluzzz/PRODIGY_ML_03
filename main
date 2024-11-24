@@ -1,0 +1,5 @@
+Implement svm to classify images of cats and dogs from the kaggle data set
+
+To implement SV classifier to classify images of cats and dogs we need to download and prepare the data and preprocess the images.
+Then we need to extract the features and split the data in to training and testing dataset.
+train the SV model and evaluate the models accuracy
