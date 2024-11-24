@@ -1,0 +1,112 @@
+# SVM Classifier
+
+# import libraries
+import os
+import pandas as pd
+import numpy as np
+import cv2
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.svm import SVC
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+from google.colab import files
+
+# Upload the file
+uploaded = files.upload()
+import zipfile
+import os
+
+# Assuming you uploaded a ZIP file named 'dataset.zip'
+zip_file = 'train.zip'
+extract_dir = '/training/imagedataset'  # Directory where you want to extract the files
+
+# Create the extraction directory if it doesn't exist
+os.makedirs(extract_dir, exist_ok=True)
+
+# Extract the ZIP file
+with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+    zip_ref.extractall(extract_dir)
+
+print(f"Files extracted to {extract_dir}")
+# List files in the extracted directory
+os.listdir(extract_dir)
+# Set path to dataset
+image_folder = '/training/imagedataset/train'
+
+# List the images and labels
+images = []
+labels = []
+
+# Assuming the dataset has images named like 'cat.0.jpg', 'dog.1.jpg' etc.
+for filename in os.listdir(image_folder):
+    if filename.endswith('.jpg'):
+        label = filename.split('.')[0]  # 'cat' or 'dog'
+        img_path = os.path.join(image_folder, filename)
+        img = cv2.imread(img_path)
+        img = cv2.resize(img, (64, 64))  # Resize to a smaller size for faster computation
+        images.append(img)
+        labels.append(label)
+
+# Convert images and labels to numpy arrays
+images = np.array(images)
+labels = np.array(labels)
+print(labels)
+# Convert to grayscale (if using grayscale images)
+images = np.mean(images, axis=-1)  # Average across the 3 color channels (RGB to grayscale)
+
+# Flatten images to 1D vectors
+images = images.reshape(images.shape[0], -1)
+
+# Normalize the pixel values to [0, 1]
+images = images / 255.0
+
+# Encode labels: 'cat' -> 0, 'dog' -> 1
+label_encoder = LabelEncoder()
+labels = label_encoder.fit_transform(labels)
+
+# Split into train and test datasets
+X_train, X_test, y_train, y_test = train_test_split(images, labels, test_size=0.2, random_state=42)
+# Apply PCA to reduce dimensionality
+pca = PCA(n_components=100)  # Keep 100 components
+X_train = pca.fit_transform(X_train)
+X_test = pca.transform(X_test)
+# Initialize and train the SVM classifier
+svm = SVC(kernel='linear')  # Linear kernel works well in many cases
+svm.fit(X_train, y_train)
+
+# Make predictions on the test set
+y_pred = svm.predict(X_test)
+# Print classification metrics
+print(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")
+print("Classification Report:")
+print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
+
+# Confusion Matrix (optional)
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=label_encoder.classes_, yticklabels=label_encoder.classes_)
+plt.ylabel('True label')
+plt.xlabel('Predicted label')
+plt.show()
+from sklearn.model_selection import GridSearchCV
+
+# Hyperparameter tuning with grid search
+param_grid = {
+    'C': [0.1, 1, 10],
+    'kernel': ['linear', 'rbf'],
+    'gamma': ['scale', 'auto']
+}
+
+grid_search = GridSearchCV(SVC(), param_grid, cv=3)
+grid_search.fit(X_train, y_train)
+
+print(f"Best parameters: {grid_search.best_params_}")
+svm_best = grid_search.best_estimator_
+
+# Evaluate the best model
+y_pred_best = svm_best.predict(X_test)
+print(f"Best Model Accuracy: {accuracy_score(y_test, y_pred_best):.4f}")
